@@ -1,8 +1,8 @@
-# Computer Data Organization Tool - Summary and Specification
+# Mergy - Summary and Specification
 
 ## Executive Summary
 
-The Computer Data Organization Tool is a Python-based CLI application designed to intelligently identify, analyze, and merge duplicate computer folders within a large collection (3000+ folders). It uses multi-tier fuzzy matching algorithms to detect folders that represent the same device (e.g., "135897-ntp" and "135897-ntp.newspace"), provides an interactive TUI for user decision-making, and safely merges data while preserving all file versions through a conflict resolution system.
+Mergy is a Python-based CLI application designed to intelligently identify, analyze, and merge duplicate computer folders within a large collection (3000+ folders). It uses multi-tier fuzzy matching algorithms to detect folders that represent the same device (e.g., "135897-ntp" and "135897-ntp.newspace"), provides an interactive TUI for user decision-making, and safely merges data while preserving all file versions through a conflict resolution system.
 
 **Key Features:**
 - Multi-tier folder matching (exact prefix, normalized, token-based, fuzzy)
@@ -42,20 +42,68 @@ pip install typer[all] rich rapidfuzz
 
 **File Structure:**
 ```
-computer-data-organizer/
-├── merger_models.py    # Data models, matcher, hasher (~300 lines)
-├── merger_ops.py       # Scanner, file ops, TUI, orchestrator, logger (~500 lines)
-├── merger.py           # Main CLI application (~400 lines)
-└── README.md           # Documentation
+mergy/                              # Root project directory
+├── mergy.py                        # Main CLI application (Typer app)
+├── merger_models.py                # Legacy compatibility shim (deprecated)
+├── merger_ops.py                   # Legacy compatibility shim (deprecated)
+├── setup.py                        # Package installation configuration
+├── requirements.txt                # Python dependencies
+├── pytest.ini                      # Pytest configuration
+├── README.md                       # User documentation
+├── AGENTS.md                       # Technical specification (this file)
+├── LICENSE                         # MIT license
+├── mergy/                          # Main package
+│   ├── __init__.py
+│   ├── models/                     # Data models package
+│   │   ├── __init__.py
+│   │   ├── match_reason.py         # MatchReason enum
+│   │   └── data_models.py          # ComputerFolder, FolderMatch, MergeSelection, etc.
+│   ├── matching/                   # Folder matching package
+│   │   ├── __init__.py
+│   │   └── folder_matcher.py       # FolderMatcher class (multi-tier algorithm)
+│   ├── scanning/                   # File scanning package
+│   │   ├── __init__.py
+│   │   ├── file_hasher.py          # FileHasher class (SHA256 hashing)
+│   │   └── folder_scanner.py       # FolderScanner class (metadata collection)
+│   ├── operations/                 # File operations package
+│   │   ├── __init__.py
+│   │   └── file_operations.py      # FileOperations class (copy, move, conflict resolution)
+│   ├── ui/                         # User interface package
+│   │   ├── __init__.py
+│   │   └── merge_tui.py            # MergeTUI class (Rich-based interactive UI)
+│   └── orchestration/              # Workflow orchestration package
+│       ├── __init__.py
+│       ├── merge_orchestrator.py   # MergeOrchestrator class (main workflow)
+│       └── merge_logger.py         # MergeLogger class (structured logging)
+└── tests/                          # Test suite
+    ├── __init__.py
+    ├── conftest.py                 # Pytest fixtures
+    ├── requirements-test.txt       # Test dependencies
+    ├── unit/                       # Unit tests
+    │   ├── __init__.py
+    │   ├── test_models.py
+    │   ├── test_matcher.py
+    │   ├── test_hasher.py
+    │   └── test_file_operations.py
+    └── integration/                # Integration tests
+        ├── __init__.py
+        ├── test_scanner.py
+        ├── test_merge_workflow.py
+        └── test_dry_run.py
 ```
 
 **Module Responsibilities:**
 
-| Module | Classes | Purpose |
-|--------|---------|---------|
-| `merger_models.py` | ComputerFolder, FolderMatch, MergeSelection, FileConflict, MergeOperation, MergeStats, FileHasher, FolderMatcher | Core data structures and matching logic |
-| `merger_ops.py` | FolderScanner, FileOperations, MergeTUI, MergeOrchestrator, MergeLogger | Operations, user interface, and logging |
-| `merger.py` | Typer CLI app | Command-line interface and workflow orchestration |
+| Module/Package | Classes/Components | Purpose |
+|----------------|-------------------|---------|
+| `mergy.models` | `ComputerFolder`, `FolderMatch`, `MergeSelection`, `FileConflict`, `MergeOperation`, `MergeSummary`, `MatchReason` | Core data structures and enums |
+| `mergy.matching` | `FolderMatcher` | Multi-tier folder matching algorithm |
+| `mergy.scanning` | `FileHasher`, `FolderScanner` | File hashing and metadata collection |
+| `mergy.operations` | `FileOperations` | File system operations (copy, move, conflict resolution) |
+| `mergy.ui` | `MergeTUI` | Rich-based terminal user interface |
+| `mergy.orchestration` | `MergeOrchestrator`, `MergeLogger` | Workflow coordination and structured logging |
+| `mergy.py` | Typer CLI app | Command-line interface and entry point |
+| `merger_models.py`, `merger_ops.py` | Compatibility shims | Deprecated legacy imports (backward compatibility) |
 
 ---
 
@@ -120,7 +168,7 @@ Result:
 #### 4.1 Scan Workflow (Read-Only)
 
 ```bash
-python merger.py scan /path/to/computersAndData [--min-confidence 70]
+python mergy.py scan /path/to/computerNames [--min-confidence 70]
 ```
 
 **Steps:**
@@ -137,7 +185,7 @@ python merger.py scan /path/to/computersAndData [--min-confidence 70]
 #### 4.2 Merge Workflow (Interactive)
 
 ```bash
-python merger.py merge /path/to/computersAndData [--dry-run] [--min-confidence 70]
+python mergy.py merge /path/to/computerNames [--dry-run] [--min-confidence 70]
 ```
 
 **Steps:**
@@ -227,36 +275,36 @@ class MergeOperation:
 
 **scan** - Analyze folders without modification
 ```bash
-python merger.py scan PATH [OPTIONS]
+python mergy.py scan PATH [OPTIONS]
 
 Arguments:
-  PATH    Path to computersAndData directory [required]
+  PATH    Path to computerNames directory [required]
 
 Options:
-  --min-confidence FLOAT    Minimum match confidence (0-100) [default: 70]
-  --log-file PATH          Custom log file location
-  --verbose                Enable verbose console output
-  --help                   Show help message
+  --min-confidence, -c FLOAT    Minimum match confidence (0-100) [default: 70]
+  --log-file, -l PATH           Custom log file location
+  --verbose, -V                 Enable verbose console output
+  --help                        Show help message
 ```
 
 **merge** - Interactive merge process
 ```bash
-python merger.py merge PATH [OPTIONS]
+python mergy.py merge PATH [OPTIONS]
 
 Arguments:
-  PATH    Path to computersAndData directory [required]
+  PATH    Path to computerNames directory [required]
 
 Options:
-  --min-confidence FLOAT    Minimum match confidence (0-100) [default: 70]
-  --dry-run                Simulate merge without changes
-  --log-file PATH          Custom log file location
-  --verbose                Enable verbose console output
-  --help                   Show help message
+  --min-confidence, -c FLOAT    Minimum match confidence (0-100) [default: 70]
+  --dry-run, -n                 Simulate merge without changes
+  --log-file, -l PATH           Custom log file location
+  --verbose, -V                 Enable verbose console output
+  --help                        Show help message
 ```
 
 **Global Options:**
 ```bash
---version, -v    Show version and exit
+--version, -v    Show version and exit (note: -V is used for verbose to avoid conflict)
 ```
 
 ---
@@ -266,7 +314,7 @@ Options:
 #### 7.1 Log File Format
 
 **Filename:** `merge_log_YYYY-MM-DD_HH-MM-SS.log`  
-**Location:** Current working directory (not in computersAndData)
+**Location:** Current working directory (not in computerNames)
 
 **Structure:**
 ```
@@ -279,7 +327,7 @@ Mode: LIVE MERGE / DRY RUN
 =================================================================
 SCAN PHASE
 =================================================================
-Base Path: /path/to/computersAndData
+Base Path: /path/to/computerNames
 Minimum Confidence Threshold: 70%
 Total folders scanned: 3000
 Match groups found: 47
@@ -536,52 +584,36 @@ test_data/
 
 **Method 1: Direct Execution**
 ```bash
-# Install dependencies
-pip install typer[all] rich rapidfuzz
+# Install dependencies (via requirements.txt or manually)
+pip install -r requirements.txt
+# Or: pip install typer[all] rich rapidfuzz
 
-# Run directly
-python merger.py merge /path/to/data
+# Run scan (read-only analysis)
+python mergy.py scan /path/to/data
+
+# Run merge (interactive)
+python mergy.py merge /path/to/data
 ```
 
-**Method 2: Package Installation**
+**Method 2: Package Installation (Recommended)**
 ```bash
 # Install as package
 pip install -e .
 
 # Run as command
-computer-org merge /path/to/data
+mergy scan /path/to/data
+mergy merge /path/to/data
 ```
 
 **Method 3: Standalone Executable**
 ```bash
 # Create executable with PyInstaller
-pyinstaller --onefile merger.py
+pip install pyinstaller
+pyinstaller --onefile mergy.py
 
 # Run executable
+./dist/merger scan /path/to/data
 ./dist/merger merge /path/to/data
-```
-
-#### 14.2 System Integration
-
-**Cron Job Example:**
-```bash
-# Weekly scan of data directory
-0 2 * * 0 /usr/bin/python3 /path/to/merger.py scan /data/computers --log-file /var/log/merger.log
-```
-
-**Systemd Service (monitoring only):**
-```ini
-[Unit]
-Description=Computer Data Merger Scanner
-After=network.target
-
-[Service]
-Type=oneshot
-ExecStart=/usr/bin/python3 /opt/merger/merger.py scan /data/computers
-User=dataadmin
-
-[Install]
-WantedBy=multi-user.target
 ```
 
 ---
