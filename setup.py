@@ -6,12 +6,26 @@ import re
 
 # Read requirements from requirements.txt
 def read_requirements():
+    """
+    Load dependency specifications from the requirements.txt file located next to this module.
+    
+    Reads requirements.txt and returns a list of non-empty, non-comment lines with surrounding whitespace removed.
+    
+    Returns:
+        list[str]: Requirement strings from requirements.txt (each line stripped), excluding empty lines and lines that begin with `#`.
+    """
     requirements_path = os.path.join(os.path.dirname(__file__), "requirements.txt")
     with open(requirements_path, "r", encoding="utf-8") as f:
         return [line.strip() for line in f if line.strip() and not line.startswith("#")]
 
 # Read long description from README.md
 def read_readme():
+    """
+    Load the project's long description from a README.md file adjacent to this module.
+    
+    Returns:
+        str: Contents of README.md as a string, or an empty string if the file does not exist.
+    """
     readme_path = os.path.join(os.path.dirname(__file__), "README.md")
     if os.path.exists(readme_path):
         with open(readme_path, "r", encoding="utf-8") as f:
@@ -21,6 +35,17 @@ def read_readme():
 
 # Read version from mergy/cli.py (single source of truth)
 def read_version():
+    """
+    Get the package version defined in mergy/cli.py.
+    
+    Searches mergy/cli.py for a top-level assignment to __version__ and returns the assigned string.
+    
+    Returns:
+        version (str): The version string extracted from mergy/cli.py.
+    
+    Raises:
+        RuntimeError: If no __version__ assignment is found in mergy/cli.py.
+    """
     cli_path = os.path.join(os.path.dirname(__file__), "mergy", "cli.py")
     with open(cli_path, "r", encoding="utf-8") as f:
         content = f.read()

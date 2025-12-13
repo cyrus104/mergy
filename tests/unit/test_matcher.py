@@ -21,7 +21,17 @@ from mergy.matching import FolderMatcher
 
 
 def create_folder(name: str, temp_dir: Path) -> ComputerFolder:
-    """Helper to create a ComputerFolder with minimal metadata."""
+    """
+    Create a ComputerFolder test fixture with minimal representative metadata.
+    
+    Parameters:
+        name (str): Folder name used for both the ComputerFolder.name and the folder path under temp_dir.
+        temp_dir (Path): Parent directory used to construct the ComputerFolder.path.
+    
+    Returns:
+        ComputerFolder: A ComputerFolder populated with basic metadata (file_count=5, total_size=1000).
+        The newest_file_date is set to the current time and oldest_file_date to 10 days earlier.
+    """
     return ComputerFolder(
         path=temp_dir / name,
         name=name,
@@ -148,7 +158,11 @@ class TestNormalizedMatch:
         assert result.match_reason == MatchReason.NORMALIZED
 
     def test_normalized_match_case_insensitive(self, temp_base_dir: Path):
-        """Verify case normalization."""
+        """
+        Verify that folder name normalization is case-insensitive.
+        
+        Creates two folders whose names differ only by letter case and asserts that FolderMatcher.match_folders returns a match with confidence >= 90.0.
+        """
         matcher = FolderMatcher()
         folder1 = create_folder("MyFolder", temp_base_dir)
         folder2 = create_folder("myfolder", temp_base_dir)
@@ -193,7 +207,11 @@ class TestTokenMatch:
     """Tests for Tier 3: Token Match algorithm."""
 
     def test_token_match_subset(self, temp_base_dir: Path):
-        """Test token subset matching with sufficient overlap."""
+        """
+        Verifies that two folders whose token sets form a subset produce a match when the matcher threshold is low.
+        
+        Creates folders named "server-web" and "server-web-backup", uses a FolderMatcher with min_confidence=30.0, and asserts that matching the pair yields a non-None result.
+        """
         # Use lower min_confidence to allow token matches
         matcher = FolderMatcher(min_confidence=30.0)
         # tokens1 = {server, web}, tokens2 = {server, web, backup}
@@ -349,7 +367,12 @@ class TestFolderMatcherIntegration:
     """Tests for FolderMatcher.find_matches() and related methods."""
 
     def test_find_matches_multiple_groups(self, temp_base_dir: Path):
-        """Test with 6+ folders forming 2 distinct groups."""
+        """
+        Verify that find_matches groups folders into at least two distinct, non-overlapping groups.
+        
+        Uses a FolderMatcher with min_confidence=70.0 on six folders forming two families and one unrelated folder.
+        Asserts that at least two match groups are returned and that no folder appears in more than one group.
+        """
         matcher = FolderMatcher(min_confidence=70.0)
 
         folders = [
@@ -398,7 +421,14 @@ class TestFolderMatcherIntegration:
         assert len(low_matches) >= len(high_matches)
 
     def test_find_matches_no_duplicates(self, temp_base_dir: Path):
-        """Ensure each folder appears once."""
+        """
+        Verifies that FolderMatcher.find_matches groups folders without duplicating any folder across match results.
+        
+        Asserts that when matching a set of similar folders with min_confidence=70.0, each folder appears at most once across all returned match groups.
+        
+        Parameters:
+            temp_base_dir (Path): Temporary directory used to create test folder objects.
+        """
         matcher = FolderMatcher(min_confidence=70.0)
 
         folders = [
@@ -435,7 +465,11 @@ class TestFolderMatcherIntegration:
         assert folder2 in result.folders
 
     def test_match_folders_no_match(self, temp_base_dir: Path):
-        """Test match_folders() returns None for non-matching folders."""
+        """
+        Verify that two unrelated folder names do not produce a match.
+        
+        Asserts that FolderMatcher.match_folders returns None when given two dissimilar folder names with a high minimum confidence (70.0).
+        """
         matcher = FolderMatcher(min_confidence=70.0)
 
         folder1 = create_folder("completely", temp_base_dir)
@@ -495,7 +529,15 @@ def test_exact_prefix_parametrized(
     full: str,
     expected_match: bool
 ):
-    """Parametrized tests for exact prefix matching."""
+    """
+    Parametrized pytest that verifies exact-prefix matching between two folder names.
+    
+    Parameters:
+        temp_base_dir (Path): Temporary directory used to create test folder fixtures.
+        prefix (str): Candidate prefix folder name.
+        full (str): Candidate full folder name to compare against the prefix.
+        expected_match (bool): If True, the test asserts an EXACT_PREFIX match is produced; if False, the test asserts that no EXACT_PREFIX match is produced (result may be None or have a different reason).
+    """
     matcher = FolderMatcher()
     folder1 = create_folder(prefix, temp_base_dir)
     folder2 = create_folder(full, temp_base_dir)

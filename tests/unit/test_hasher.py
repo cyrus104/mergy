@@ -256,7 +256,11 @@ class TestFileHasherErrors:
         assert result == ""
 
     def test_hash_file_permission_denied(self, temp_base_dir: Path):
-        """Mock permission error, verify exception handling."""
+        """
+        Verify that FileHasher.get_hash returns an empty string when opening the file raises PermissionError.
+        
+        Creates a file and patches builtins.open to raise PermissionError during read attempts, then asserts that get_hash returns an empty string.
+        """
         hasher = FileHasher()
 
         test_file = temp_base_dir / "no_permission.txt"
@@ -377,7 +381,9 @@ class TestFileHasherChunkSize:
         assert result == expected
 
     def test_one_byte_file(self, temp_base_dir: Path):
-        """Test single byte file."""
+        """
+        Verify that hashing a file containing a single byte produces the expected SHA-256 hex digest.
+        """
         hasher = FileHasher()
 
         test_file = temp_base_dir / "one_byte.bin"

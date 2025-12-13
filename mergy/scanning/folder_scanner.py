@@ -30,13 +30,13 @@ class FolderScanner:
 
     def __init__(self, base_path: Path) -> None:
         """
-        Initialize with base directory path.
-
-        Args:
-            base_path: Base directory containing folders to scan.
-
+        Create a FolderScanner bound to a base directory for scanning its immediate subdirectories.
+        
+        Parameters:
+            base_path (Path): Path to an existing directory whose immediate subdirectories will be scanned.
+        
         Raises:
-            ValueError: If base_path does not exist or is not a directory.
+            ValueError: If `base_path` does not exist or is not a directory.
         """
         if not base_path.exists():
             raise ValueError(f"Base path does not exist: {base_path}")
@@ -48,15 +48,22 @@ class FolderScanner:
 
     @property
     def errors(self) -> List[str]:
-        """Return list of errors encountered during scanning."""
+        """
+        List the error messages recorded during the most recent scan.
+        
+        Returns:
+            List[str]: A shallow copy of the list of error message strings collected during scanning.
+        """
         return self._errors.copy()
 
     def scan(self) -> List[ComputerFolder]:
         """
-        Scan all subdirectories and return list of ComputerFolder objects.
-
+        Collect metadata for each immediate subdirectory of the base path and return corresponding ComputerFolder objects.
+        
+        Skips directories named ".merged". Permission and OS errors encountered while accessing the base path or individual subdirectories are recorded in the instance's errors list.
+        
         Returns:
-            List of ComputerFolder instances for each valid subdirectory.
+            List[ComputerFolder]: A list of ComputerFolder instances, one per scanned immediate subdirectory.
         """
         self._errors.clear()
         folders: List[ComputerFolder] = []
@@ -84,13 +91,19 @@ class FolderScanner:
 
     def _scan_folder(self, folder_path: Path) -> ComputerFolder:
         """
-        Scan single folder and collect metadata.
-
-        Args:
-            folder_path: Path to the folder to scan.
-
+        Collect metadata for all regular files under a folder, skipping any subdirectories named ".merged".
+        
+        Parameters:
+            folder_path (Path): Path of the directory to scan.
+        
         Returns:
-            ComputerFolder instance with collected metadata.
+            ComputerFolder: Instance containing:
+                - path: the scanned folder Path
+                - name: folder name
+                - file_count: number of files found
+                - total_size: cumulative size in bytes of those files
+                - oldest_file_date: datetime of the oldest file's creation time, or None if no files
+                - newest_file_date: datetime of the newest file's creation time, or None if no files
         """
         file_count = 0
         total_size = 0
@@ -150,12 +163,12 @@ class FolderScanner:
 
     def _should_skip(self, path: Path) -> bool:
         """
-        Check if path should be skipped during scanning.
-
-        Args:
-            path: Path to check.
-
+        Determine whether the given path should be skipped because its name equals the merged-directory marker.
+        
+        Parameters:
+            path (Path): Path to evaluate.
+        
         Returns:
-            True if path should be skipped, False otherwise.
+            True if path.name equals the scanner's MERGED_DIR_NAME, False otherwise.
         """
         return path.name == self.MERGED_DIR_NAME

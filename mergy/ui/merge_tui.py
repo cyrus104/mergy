@@ -27,23 +27,23 @@ class MergeTUI:
 
     def __init__(self, dry_run: bool = False) -> None:
         """
-        Initialize TUI with Rich Console.
-
-        Args:
-            dry_run: If True, display [DRY RUN] prefix in progress messages.
+        Create a MergeTUI instance and configure the Rich console.
+        
+        Parameters:
+            dry_run (bool): If True, prepend "[DRY RUN]" to progress descriptions.
         """
         self.console = Console()
         self.dry_run = dry_run
 
     def _format_size(self, size_bytes: int) -> str:
         """
-        Format byte size to human-readable string.
-
-        Args:
-            size_bytes: Size in bytes.
-
+        Convert a size in bytes to a human-readable string using KB, MB, or GB units.
+        
+        Parameters:
+            size_bytes (int): Size in bytes to format.
+        
         Returns:
-            Formatted string (e.g., "1.5 GB", "256 MB", "12 KB").
+            formatted_size (str): Human-readable size (e.g., "1.5 GB", "256 MB", "12 KB", or "512 B").
         """
         if size_bytes >= 1024 ** 3:
             return f"{size_bytes / (1024 ** 3):.1f} GB"
@@ -56,13 +56,10 @@ class MergeTUI:
 
     def _format_date_range(self, folder: ComputerFolder) -> str:
         """
-        Format date range for a folder.
-
-        Args:
-            folder: ComputerFolder with date information.
-
+        Produce a human-readable date range for the folder's files.
+        
         Returns:
-            Formatted date range string or "Empty folder" if no files.
+            A single date "YYYY-MM-DD" if oldest and newest file dates are identical, a range "YYYY-MM-DD to YYYY-MM-DD" if they differ, or "Empty folder" if either date is missing.
         """
         if folder.oldest_file_date is None or folder.newest_file_date is None:
             return "Empty folder"
@@ -78,12 +75,14 @@ class MergeTUI:
         self, match: FolderMatch, current: int, total: int
     ) -> None:
         """
-        Display a match group with folder details.
-
-        Args:
-            match: FolderMatch containing folders to display.
-            current: Current match group number (1-based).
-            total: Total number of match groups.
+        Render a match group overview including a progress indicator, folder table, and match details panel.
+        
+        Displays a horizontal progress indicator for the current match group, a table of each folder's index, name, file count, size, and date range, and a details panel showing confidence and the human-readable match reason.
+        
+        Parameters:
+            match (FolderMatch): The match group to display.
+            current (int): Current match group index (1-based).
+            total (int): Total number of match groups.
         """
         # Progress indicator
         progress_filled = int((current / total) * 12)
@@ -123,10 +122,12 @@ class MergeTUI:
 
     def prompt_merge_action(self) -> str:
         """
-        Prompt user for merge action.
-
+        Prompt the user to choose a merge action.
+        
+        Prompts repeatedly until the user selects one of the allowed choices.
+        
         Returns:
-            User's choice: 'm' (merge), 's' (skip), or 'q' (quit).
+            str: 'm' if merge, 's' if skip, 'q' if quit.
         """
         while True:
             choice = Prompt.ask(
@@ -139,13 +140,15 @@ class MergeTUI:
 
     def prompt_folder_selection(self, match: FolderMatch) -> List[int]:
         """
-        Prompt user to select folders to merge.
-
-        Args:
-            match: FolderMatch containing folders to choose from.
-
+        Prompt the user to choose which folders from a match group should be merged.
+        
+        Prompts listing each folder and accepts either a space-separated list of 1-based folder numbers or "all". Repeats until a valid selection is provided; validates that each number is in range and that at least two folders are selected.
+        
+        Parameters:
+            match (FolderMatch): Match group containing the folders available for selection.
+        
         Returns:
-            List of selected folder indices (0-based).
+            selected_indices (List[int]): 0-based indices of the selected folders.
         """
         self.console.print("\n[bold]Select folders to merge:[/bold]")
         for idx, folder in enumerate(match.folders, start=1):
@@ -180,13 +183,13 @@ class MergeTUI:
 
     def prompt_primary_selection(self, selected_folders: List[ComputerFolder]) -> int:
         """
-        Prompt user to select the primary (destination) folder.
-
-        Args:
-            selected_folders: List of folders selected for merge.
-
+        Ask the user to choose the primary (destination) folder from the provided list.
+        
+        Parameters:
+            selected_folders (List[ComputerFolder]): Folders available to choose from.
+        
         Returns:
-            Index of selected primary folder (0-based).
+            int: 0-based index of the chosen primary folder.
         """
         self.console.print("\n[bold]Select primary folder (destination):[/bold]")
         for idx, folder in enumerate(selected_folders, start=1):
@@ -284,13 +287,12 @@ class MergeTUI:
 
     def show_progress_bar(self, description: str) -> Progress:
         """
-        Create a Rich Progress context manager for file operations.
-
-        Args:
-            description: Description to show in progress bar.
-
+        Create a configured Rich Progress instance for displaying file-operation progress.
+        
+        The progress display includes a spinner, a description column (prefixed with "[DRY RUN] " when dry-run mode is enabled), a progress bar, and a percentage column.
+        
         Returns:
-            Rich Progress instance to use as context manager.
+            A configured Rich Progress instance suitable for use as a context manager.
         """
         prefix = "[DRY RUN] " if self.dry_run else ""
         return Progress(

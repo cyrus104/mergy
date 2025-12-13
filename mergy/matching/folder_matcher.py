@@ -32,22 +32,24 @@ class FolderMatcher:
 
     def __init__(self, min_confidence: float = 70.0):
         """
-        Initialize the FolderMatcher.
-
-        Args:
-            min_confidence: Minimum confidence threshold for matches (0-100).
+        Create a FolderMatcher configured with the minimum confidence required to accept matches.
+        
+        Parameters:
+            min_confidence (float): Minimum confidence threshold for accepting a match, in the range 0–100.
         """
         self.min_confidence = min_confidence
 
     def find_matches(self, folders: List[ComputerFolder]) -> List[FolderMatch]:
         """
-        Find all matching folder groups from a list of folders.
-
-        Args:
-            folders: List of ComputerFolder instances to analyze.
-
+        Identify groups of related folders from the provided list using the matcher’s configured thresholds.
+        
+        Scans the list in order, seeding groups from the first unmatched folder and adding later folders that meet or exceed the matcher’s min_confidence. For each group with more than one folder, the group's representative base_name and match_reason are taken from the highest-confidence pair found while grouping; folders included in a group are not considered again as group seeds.
+        
+        Parameters:
+            folders (List[ComputerFolder]): Folders to analyze; the input order determines group-seeding precedence.
+        
         Returns:
-            List of FolderMatch instances above the confidence threshold.
+            List[FolderMatch]: FolderMatch objects for each identified group containing more than one folder whose computed confidence meets or exceeds min_confidence.
         """
         matches: List[FolderMatch] = []
         matched_indices: set = set()
@@ -92,10 +94,12 @@ class FolderMatcher:
         self, folder1: ComputerFolder, folder2: ComputerFolder
     ) -> Optional[tuple[float, MatchReason, str]]:
         """
-        Attempt to match two folders using the four-tier algorithm.
-
+        Attempt to match two folders using the class's four-tier matching algorithm.
+        
+        Tries tiers in order: exact prefix, normalized, token-based (Jaccard), and fuzzy (token-sort) and returns the first successful match.
+        
         Returns:
-            Tuple of (confidence, reason, base_name) if matched, None otherwise.
+            (confidence, reason, base_name) tuple when a tier produces a match, `None` otherwise.
         """
         name1 = folder1.name
         name2 = folder2.name
@@ -126,12 +130,16 @@ class FolderMatcher:
         self, name1: str, name2: str
     ) -> Optional[tuple[float, MatchReason, str]]:
         """
-        Tier 1: Check if one name is an exact prefix of the other.
-
-        Validates that the prefix ends at a delimiter boundary.
-        Confidence: 100%
-
-        Example: "135897-ntp" matches "135897-ntp.newspace"
+        Determine whether one folder name is an exact prefix of the other at a delimiter boundary.
+        
+        Compares the two provided folder names; if one is identical to the start of the other and either the names are equal in length or the character following the prefix in the longer name is a delimiter (`-`, `_`, `.`), this is considered an exact prefix match.
+        
+        Parameters:
+            name1 (str): First folder name to compare.
+            name2 (str): Second folder name to compare.
+        
+        Returns:
+            tuple[float, MatchReason, str] | None: A tuple `(confidence, reason, base_name)` with `confidence` set to `100.0`, `reason` set to `MatchReason.EXACT_PREFIX`, and `base_name` equal to the prefix used when a match is found; `None` if no exact-prefix match exists.
         """
         # Determine which is shorter (the potential prefix)
         if len(name1) <= len(name2):
@@ -156,12 +164,12 @@ class FolderMatcher:
         self, name1: str, name2: str
     ) -> Optional[tuple[float, MatchReason, str]]:
         """
-        Tier 2: Match after normalizing delimiters.
-
-        Normalizes by replacing -, _, ., and space with a single space.
-        Confidence: 90%
-
-        Example: "192.168.1.5-computer01" matches "192.168.1.5 computer01"
+        Determine whether two folder names are equal after normalizing delimiter characters.
+        
+        Normalizes sequences of '-', '_', '.', or whitespace to a single space, trims and lowercases both names before comparing.
+        
+        Returns:
+            A tuple (90.0, MatchReason.NORMALIZED, base_name) when the normalized names are equal, `None` otherwise. `base_name` is the shorter of the two original input names.
         """
         normalized1 = self.DELIMITER_PATTERN.sub(' ', name1).strip().lower()
         normalized2 = self.DELIMITER_PATTERN.sub(' ', name2).strip().lower()
@@ -177,12 +185,14 @@ class FolderMatcher:
         self, name1: str, name2: str
     ) -> Optional[tuple[float, MatchReason, str]]:
         """
-        Tier 3: Token-based matching using Jaccard similarity.
-
-        Extracts tokens and compares using set intersection/union ratio.
-        Confidence: 70% base, scaled by Jaccard similarity.
-
-        Example: "computer01" matches "192.168.1.5-computer01"
+        Compute a token-based similarity score between two folder names using Jaccard similarity.
+        
+        If both names contain alphanumeric tokens and their Jaccard similarity is at least 0.5, returns a tuple with a confidence scaled from a 70% base by the Jaccard value, the TOKEN_MATCH reason, and the original name that has fewer tokens as the base. Returns `None` if either name has no tokens or the Jaccard similarity is below 0.5.
+        
+        Returns:
+            (confidence, MatchReason.TOKEN_MATCH, base_name): 
+                - confidence (float): 70.0 multiplied by the Jaccard similarity (range >0.0 up to 70.0).
+                - base_name (str): the original input name that contains fewer tokens.
         """
         tokens1 = set(self.TOKEN_PATTERN.findall(name1.lower()))
         tokens2 = set(self.TOKEN_PATTERN.findall(name2.lower()))
@@ -212,12 +222,12 @@ class FolderMatcher:
         self, name1: str, name2: str
     ) -> Optional[tuple[float, MatchReason, str]]:
         """
-        Tier 4: Fuzzy matching using Levenshtein distance.
-
-        Uses rapidfuzz's token_sort_ratio for spelling variations.
-        Confidence: 50% base, scaled by similarity ratio.
-
-        Example: "comptuer01" matches "computer01"
+        Compute a fuzzy match between two folder names and return match details when they meet the fuzzy-tier threshold.
+        
+        Uses a token-sorted fuzzy similarity measure; if the measured similarity is at least 80, returns a tuple containing the confidence, the `MatchReason.FUZZY_MATCH` reason, and a chosen base name. The confidence equals 50.0 multiplied by the similarity fraction (similarity / 100.0). The base name is the shorter of the two original inputs.
+        
+        Returns:
+            tuple[float, MatchReason, str]: (confidence, MatchReason.FUZZY_MATCH, base_name) when similarity >= 80, `None` otherwise.
         """
         # Use token_sort_ratio for better handling of word order variations
         similarity = fuzz.token_sort_ratio(name1.lower(), name2.lower())
@@ -236,14 +246,15 @@ class FolderMatcher:
         self, folder1: ComputerFolder, folder2: ComputerFolder
     ) -> Optional[FolderMatch]:
         """
-        Match two specific folders and return a FolderMatch if they match.
-
-        Args:
-            folder1: First folder to compare.
-            folder2: Second folder to compare.
-
+        Compare two folders and return a FolderMatch when their match confidence meets the matcher's threshold.
+        
+        Parameters:
+            folder1 (ComputerFolder): First folder to compare.
+            folder2 (ComputerFolder): Second folder to compare.
+        
         Returns:
-            FolderMatch if the folders match above threshold, None otherwise.
+            FolderMatch: Contains both folders, the computed confidence, match reason, and base name when confidence >= min_confidence.
+            None: If the computed confidence is below the matcher's threshold or no match is found.
         """
         result = self._match_pair(folder1, folder2)
         if result is not None:

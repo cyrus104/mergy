@@ -45,7 +45,17 @@ def create_merge_selection(
     merge_from_names: list,
     base_dir: Path
 ) -> MergeSelection:
-    """Create a MergeSelection for testing."""
+    """
+    Constructs a MergeSelection containing a primary ComputerFolder and one or more source folders for use in tests.
+    
+    Parameters:
+        primary_name (str): Name of the primary folder to create under base_dir.
+        merge_from_names (list): Names of folders to create as merge sources under base_dir.
+        base_dir (Path): Directory in which the ComputerFolder instances will be created.
+    
+    Returns:
+        MergeSelection: Selection with `primary` set to the created primary folder, `merge_from` set to the created source folders, and `match_group` set to a FolderMatch with 100.0 confidence and MatchReason.EXACT_PREFIX using the primary_name as base_name.
+    """
     primary = create_computer_folder(primary_name, base_dir)
     merge_from = [create_computer_folder(name, base_dir) for name in merge_from_names]
 
@@ -482,7 +492,9 @@ class TestDryRunMode:
         assert not dest_file.exists()
 
     def test_dry_run_no_directory_creation(self, temp_base_dir: Path):
-        """Verify no .merged/ dirs created in dry-run."""
+        """
+        Ensure resolving a file conflict in dry-run mode does not create a .merged directory.
+        """
         hasher = FileHasher()
         ops = FileOperations(hasher, dry_run=True)
 

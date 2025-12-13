@@ -54,14 +54,14 @@ class MergeOrchestrator:
         logger_instance: Optional['MergeLogger'] = None
     ) -> None:
         """
-        Initialize orchestrator with workflow parameters.
-
-        Args:
-            base_path: Base directory containing folders to scan.
-            min_confidence: Minimum confidence threshold for matches (0-100).
-            dry_run: If True, perform analysis without actual file operations.
-            verbose: If True, enable verbose output.
-            logger_instance: Optional MergeLogger for structured logging.
+        Create and configure the MergeOrchestrator with workflow parameters.
+        
+        Parameters:
+            base_path (Path): Base directory that will be scanned for folders.
+            min_confidence (float): Match confidence threshold from 0 to 100 used to filter detected folder matches.
+            dry_run (bool): When True, file operations are simulated and no changes are written.
+            verbose (bool): When True, enable more verbose output for progress and diagnostics.
+            logger_instance (Optional[MergeLogger]): Optional structured logger for merge events and telemetry.
         """
         self.base_path = Path(base_path).resolve()
         self.min_confidence = min_confidence
@@ -83,10 +83,12 @@ class MergeOrchestrator:
 
     def execute_scan_phase(self) -> List[FolderMatch]:
         """
-        Phase 1: Scan directories and find matching folder groups.
-
+        Scan the base directory and identify folder match groups above the configured confidence threshold.
+        
+        Performs a folder scan using the configured FolderScanner, detects matching groups via FolderMatcher, logs any scanner errors, displays a brief summary to the TUI, and records the scan to the optional MergeLogger.
+        
         Returns:
-            List of FolderMatch objects above confidence threshold.
+            List[FolderMatch]: Matches whose confidence meets or exceeds this orchestrator's `min_confidence`.
         """
         self.tui.console.print("[bold blue]Phase 1: Scanning folders...[/bold blue]")
 
@@ -206,13 +208,13 @@ class MergeOrchestrator:
         self, selection: MergeSelection
     ) -> tuple[MergeOperation, List[FileConflict]]:
         """
-        Phase 3: Analyze merge operation in dry-run mode.
-
-        Args:
-            selection: MergeSelection to analyze.
-
+        Perform a dry-run analysis of a MergeSelection, producing an aggregated MergeOperation with analysis statistics and a list of detected file conflicts.
+        
+        Parameters:
+            selection (MergeSelection): Selection describing the primary folder and source folders to be merged.
+        
         Returns:
-            Tuple of (MergeOperation with analysis stats, list of FileConflict).
+            tuple[MergeOperation, List[FileConflict]]: A tuple where the first element is a `MergeOperation` summarizing analysis results (marked as a dry run, including counts such as files copied, skipped, conflicts resolved, and folders removed), and the second element is a list of `FileConflict` instances describing files that would conflict between sources and the primary.
         """
         # Create separate FileHasher for analysis to avoid mixing with execution cache
         analysis_hasher = FileHasher()
@@ -259,14 +261,21 @@ class MergeOrchestrator:
         file_hasher: FileHasher
     ) -> None:
         """
-        Analyze files in a source folder for merge preview.
-
-        Args:
-            source_folder: Source folder to analyze.
-            primary_folder: Destination primary folder.
-            operation: MergeOperation to update with stats.
-            conflicts: List to append detected conflicts.
-            file_hasher: FileHasher instance to use for hash calculations.
+        Analyze a source folder against a primary folder to accumulate merge preview statistics and detected file conflicts.
+        
+        Walks the source_folder (following symlinks) and, for each regular file:
+        - If the corresponding path in primary_folder does not exist, increments operation.files_copied.
+        - If the corresponding file exists, compares content hashes:
+          - If hashes are equal, increments operation.files_skipped.
+          - If hashes differ, increments operation.conflicts_resolved and appends a FileConflict to `conflicts` containing the relative path, primary and conflicting file paths, their hashes, and creation times.
+        Any PermissionError or OSError encountered for a file is recorded as a string in operation.errors.
+        
+        Parameters:
+            source_folder (Path): Directory whose files are being analyzed for merging.
+            primary_folder (Path): Destination/primary directory used as the merge target reference.
+            operation (MergeOperation): Operation object whose counters and error list will be updated.
+            conflicts (List[FileConflict]): Mutable list to which detected FileConflict instances will be appended.
+            file_hasher (FileHasher): Hashing utility used to compute file content hashes.
         """
         for root, dirs, files in os.walk(source_folder, followlinks=True):
             root_path = Path(root)
@@ -310,13 +319,13 @@ class MergeOrchestrator:
         self, selections: List[MergeSelection]
     ) -> List[MergeOperation]:
         """
-        Phase 4: Execute merge operations.
-
-        Args:
-            selections: List of MergeSelection objects to execute.
-
+        Execute the merge operations for the given selections.
+        
+        Parameters:
+            selections (List[MergeSelection]): Confirmed merge selections to execute; each selection will be processed and produce a corresponding MergeOperation result.
+        
         Returns:
-            List of completed MergeOperation objects.
+            operations (List[MergeOperation]): List of MergeOperation objects produced for each successfully executed selection, in the order processed.
         """
         self.tui.console.print(
             "\n[bold blue]Phase 4: Executing merge operations...[/bold blue]"
@@ -386,13 +395,14 @@ class MergeOrchestrator:
         self, operations: List[MergeOperation]
     ) -> MergeSummary:
         """
-        Phase 5: Display and log final summary.
-
-        Args:
-            operations: List of completed MergeOperation objects.
-
+        Builds, displays, and optionally logs a final summary for the provided merge operations.
+        
+        Parameters:
+            operations (List[MergeOperation]): Completed merge operations to aggregate.
+        
         Returns:
-            MergeSummary with summary statistics.
+            MergeSummary: Aggregated totals including total_operations, files_copied, files_skipped,
+            conflicts_resolved, folders_removed, a flattened list of errors, and duration in seconds.
         """
         self.tui.console.print("\n[bold blue]Phase 5: Summary[/bold blue]")
 
@@ -421,10 +431,12 @@ class MergeOrchestrator:
 
     def run_scan_workflow(self) -> List[FolderMatch]:
         """
-        Run scan-only workflow (no merge).
-
+        Scan the base path and return matching folder groups without performing any merge operations.
+        
+        Sets the orchestrator's start_time before scanning. If the user interrupts the scan (KeyboardInterrupt), the method returns an empty list.
+        
         Returns:
-            List of FolderMatch objects found.
+            List[FolderMatch]: FolderMatch objects discovered by the scan; empty list if the scan was interrupted.
         """
         self.start_time = time.time()
 

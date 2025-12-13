@@ -34,24 +34,24 @@ class FileOperations:
 
     def __init__(self, file_hasher: FileHasher, dry_run: bool = False) -> None:
         """
-        Initialize with FileHasher instance.
-
-        Args:
-            file_hasher: FileHasher instance for calculating file hashes.
-            dry_run: If True, perform analysis but skip actual file operations.
+        Create a FileOperations instance configured with a FileHasher and optional dry-run mode.
+        
+        Parameters:
+            file_hasher (FileHasher): Used to compute file hashes during merge and conflict detection.
+            dry_run (bool): If True, simulate operations without making filesystem changes.
         """
         self.file_hasher = file_hasher
         self.dry_run = dry_run
 
     def merge_folders(self, selection: MergeSelection) -> MergeOperation:
         """
-        Execute complete merge operation.
-
-        Args:
-            selection: MergeSelection containing primary and merge-from folders.
-
+        Perform a full merge of all merge-from folders into the primary folder described by `selection`.
+        
+        Parameters:
+            selection (MergeSelection): Selection containing the primary folder and one or more merge-from folders.
+        
         Returns:
-            MergeOperation with results and statistics.
+            MergeOperation: Aggregated results and statistics for the completed merge (respecting the instance's dry-run setting).
         """
         operation = MergeOperation(
             selection=selection,
@@ -90,11 +90,16 @@ class FileOperations:
     ) -> None:
         """
         Merge files from a single source folder into the primary folder.
-
-        Args:
-            source_folder: Source folder to merge from.
-            primary_folder: Destination primary folder.
-            operation: MergeOperation to update with results.
+        
+        Recursively walks source_folder (following symlinks) and processes each file into the corresponding location in primary_folder, skipping any directories named ".merged". The provided MergeOperation is updated with counts and error messages. PermissionError conditions are recorded on the operation; an OSError indicating "No space left on device" (errno 28) is recorded and re-raised to abort the merge, while other OSErrors are recorded and the merge continues.
+        
+        Parameters:
+            source_folder (Path): Source folder to merge from.
+            primary_folder (Path): Destination primary folder.
+            operation (MergeOperation): Operation object that will be mutated to record files copied, skipped, conflicts resolved, and any errors.
+        
+        Raises:
+            OSError: Re-raises when disk is full (errno 28 or error message contains "No space left on device") to abort the operation.
         """
         # Walk the source folder tree
         for root, dirs, files in os.walk(source_folder, followlinks=True):
@@ -144,14 +149,16 @@ class FileOperations:
         operation: MergeOperation
     ) -> None:
         """
-        Process a single file: copy, skip, or resolve conflict.
-
-        Args:
-            source_file: Source file path.
-            dest_file: Destination file path in primary folder.
-            relative_path: Relative path within the folder structure.
-            primary_folder: Primary folder path.
-            operation: MergeOperation to update with results.
+        Process a single file from a merge source by copying it into the primary, skipping it if identical, or resolving a conflict if different.
+        
+        This updates the provided MergeOperation counters: increments files_copied when a new file is copied, files_skipped when the file is identical to the primary, and conflicts_resolved when a differing file is resolved. Side effects include creating or moving files and creating a `.merged` preservation directory when resolving conflicts (subject to dry-run mode).
+        
+        Parameters:
+            source_file (Path): Path to the file in the merge-from folder.
+            dest_file (Path): Corresponding path in the primary folder.
+            relative_path (Path): File path relative to the root of the source folder (used for logging and preserved-path construction).
+            primary_folder (Path): Root path of the primary folder where files are merged into.
+            operation (MergeOperation): Operation accumulator that will be updated with counts and any errors.
         """
         if not dest_file.exists():
             # File doesn't exist in primary - copy it
@@ -179,15 +186,17 @@ class FileOperations:
         relative_path: Path
     ) -> Optional[FileConflict]:
         """
-        Compare two files and detect conflicts.
-
-        Args:
-            primary_path: Path to file in primary folder.
-            merge_path: Path to file in merge-from folder.
-            relative_path: Relative path within folder structure.
-
+        Detects whether two files conflict by comparing their content hashes.
+        
+        Parameters:
+            primary_path (Path): Path to the file in the primary folder.
+            merge_path (Path): Path to the file in the merge-from folder.
+            relative_path (Path): Relative path of the file within the folder structure.
+        
         Returns:
-            FileConflict if files differ, None if identical.
+            FileConflict: Details of the conflict including `relative_path`, `primary_file`, `conflicting_file`,
+                `primary_hash`, `conflict_hash`, `primary_ctime`, and `conflict_ctime` when the files differ.
+            None: If the files are identical or if either file's hash cannot be computed (comparison is skipped).
         """
         primary_hash = self.file_hasher.get_hash(primary_path)
         merge_hash = self.file_hasher.get_hash(merge_path)
@@ -217,14 +226,16 @@ class FileOperations:
 
     def _resolve_conflict(self, conflict: FileConflict, primary_folder: Path) -> None:
         """
-        Resolve conflict by moving older file to .merged/ directory.
-
-        The newer file (by st_ctime) always wins. The older file is preserved
-        in a .merged/ subdirectory with a hash suffix in the filename.
-
-        Args:
-            conflict: FileConflict describing the conflicting files.
-            primary_folder: Path to the primary folder.
+        Resolve a file conflict by preserving the older version in a nearby .merged directory.
+        
+        Determines the newer file by comparing ctime; the newer file remains in the primary location
+        and the older file is preserved next to the conflicted path inside a ".merged" subdirectory
+        with a short hash appended to its filename. When running in dry-run mode, no filesystem
+        changes are made but the same resolution decision is performed.
+        
+        Parameters:
+            conflict (FileConflict): Details of the conflicting files, their hashes, ctimes, and relative path.
+            primary_folder (Path): Root path of the primary folder used to locate or create the adjacent ".merged" directory.
         """
         # Determine which file is newer based on ctime
         primary_is_newer = conflict.primary_ctime >= conflict.conflict_ctime
@@ -270,14 +281,13 @@ class FileOperations:
 
     def _copy_file(self, source: Path, dest: Path) -> None:
         """
-        Copy file with error handling.
-
-        Creates parent directories as needed. Uses shutil.copy2 to preserve
-        file metadata (timestamps, permissions).
-
-        Args:
-            source: Source file path.
-            dest: Destination file path.
+        Copy a file to the destination, creating parent directories as needed and preserving file metadata.
+        
+        If the FileOperations instance is in dry-run mode, the intended copy is logged and no filesystem changes are made.
+        
+        Parameters:
+            source (Path): Path to the source file to copy.
+            dest (Path): Path to the destination file to create or overwrite.
         """
         if self.dry_run:
             logger.debug(f"[DRY RUN] Would copy: {source} -> {dest}")
@@ -291,16 +301,15 @@ class FileOperations:
 
     def _remove_empty_dirs(self, folder_path: Path) -> int:
         """
-        Remove empty directories recursively.
-
-        Walks the directory tree bottom-up and removes directories that
-        are empty after their children have been processed.
-
-        Args:
-            folder_path: Root folder to clean up.
-
+        Remove empty subdirectories under the given folder, skipping any directories named ".merged".
+        
+        Performs a bottom-up traversal and removes directories that are empty after their children are processed. Does nothing in dry-run mode, ignores directories named ".merged", and silently skips directories that cannot be removed due to permissions or concurrent content changes. After traversal, attempts to remove the root folder if it is empty.
+        
+        Parameters:
+            folder_path (Path): Root folder to clean up.
+        
         Returns:
-            Number of directories removed.
+            int: Number of directories removed.
         """
         removed_count = 0
 

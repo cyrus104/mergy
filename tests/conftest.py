@@ -44,13 +44,10 @@ def pytest_configure(config):
 @pytest.fixture
 def temp_base_dir() -> Generator[Path, None, None]:
     """
-    Create a temporary directory for test operations.
-
-    Yields:
-        Path to temporary directory.
-
-    Cleanup:
-        Removes the directory and all contents after the test.
+    Create a temporary directory for a test and yield its Path.
+    
+    Returns:
+        Path: Path to the created temporary directory. The directory and its contents are removed after the fixture completes.
     """
     temp_dir = tempfile.mkdtemp(prefix="mergy_test_")
     yield Path(temp_dir)
@@ -81,10 +78,10 @@ def temp_file(temp_base_dir: Path) -> Generator[Path, None, None]:
 @pytest.fixture
 def sample_folders(temp_base_dir: Path) -> List[ComputerFolder]:
     """
-    Create a list of ComputerFolder instances with varied metadata for matcher testing.
-
+    Create a set of example ComputerFolder objects covering common matching scenarios for tests.
+    
     Returns:
-        List of 8 ComputerFolder instances covering all matching scenarios.
+        List[ComputerFolder]: Eight ComputerFolder instances representing exact-prefix matches, normalized name matches, token-based matches, an unrelated folder, and an empty-folder scenario.
     """
     base_date = datetime(2024, 1, 15, 12, 0, 0)
 
@@ -170,18 +167,18 @@ def sample_folders(temp_base_dir: Path) -> List[ComputerFolder]:
 @pytest.fixture
 def test_data_structure(temp_base_dir: Path) -> Path:
     """
-    Set up the test data hierarchy from AGENTS.md section 13.2.
-
-    Creates the following structure with actual files:
+    Create a test directory hierarchy that mirrors the layout described in AGENTS.md section 13.2.
+    
+    The created structure (under the provided base Path) contains:
     - computer-01/: 5 files
-    - computer-01-backup/: 3 files (2 duplicates, 1 unique)
-    - computer-01.old/: 4 files (1 conflict, 2 duplicates, 1 unique)
-    - 192.168.1.5-computer02/: 6 files in nested structure
+    - computer-01-backup/: 3 files (2 duplicates of computer-01, 1 unique)
+    - computer-01.old/: 4 files (1 conflicting file, 2 duplicates, 1 unique)
+    - 192.168.1.5-computer02/: 6 files in nested subfolders
     - 192.168.1.5 computer02/: 4 files (3 duplicates, 1 unique)
-    - unrelated-folder/: 3 files
-
+    - unrelated-folder/: 3 files (no expected matches)
+    
     Returns:
-        Path to the base directory containing test data.
+        Path: The provided base directory populated with the test data hierarchy.
     """
     # Create base directories
     folders = [
@@ -266,10 +263,10 @@ def mock_console() -> MagicMock:
 @pytest.fixture
 def file_hasher() -> FileHasher:
     """
-    Return a configured FileHasher instance.
-
+    Create a fresh hasher instance with an empty cache.
+    
     Returns:
-        Fresh FileHasher instance with empty cache.
+        FileHasher: A new FileHasher instance whose internal cache is empty.
     """
     return FileHasher()
 
@@ -277,13 +274,13 @@ def file_hasher() -> FileHasher:
 @pytest.fixture
 def folder_scanner(temp_base_dir: Path) -> FolderScanner:
     """
-    Return a configured FolderScanner instance with temp directory.
-
-    Args:
-        temp_base_dir: Temporary directory fixture.
-
+    Create a FolderScanner configured to scan the provided temporary base directory.
+    
+    Parameters:
+        temp_base_dir (Path): Base directory that the scanner will scan.
+    
     Returns:
-        FolderScanner configured to scan temp_base_dir.
+        FolderScanner: Scanner instance configured to scan the given directory.
     """
     return FolderScanner(temp_base_dir)
 
@@ -294,14 +291,14 @@ def folder_scanner(temp_base_dir: Path) -> FolderScanner:
 
 def create_file_with_content(path: Path, content: str) -> Path:
     """
-    Create a file with specified content, creating parent directories as needed.
-
-    Args:
-        path: Path to the file to create.
-        content: Text content to write.
-
+    Create a file at the given path with the provided text content, creating parent directories if necessary.
+    
+    Parameters:
+        path (Path): Destination file path to create.
+        content (str): Text to write into the file.
+    
     Returns:
-        Path to the created file.
+        Path: The path to the created file.
     """
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(content)
@@ -310,14 +307,16 @@ def create_file_with_content(path: Path, content: str) -> Path:
 
 def create_file_with_bytes(path: Path, content: bytes) -> Path:
     """
-    Create a binary file with specified content.
-
-    Args:
-        path: Path to the file to create.
-        content: Binary content to write.
-
+    Create a binary file at the given path with the provided bytes content.
+    
+    This will create parent directories as needed and overwrite any existing file at that path.
+    
+    Parameters:
+        path (Path): Target file path to create.
+        content (bytes): Binary content to write to the file.
+    
     Returns:
-        Path to the created file.
+        Path: The same Path passed in, pointing to the created file.
     """
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_bytes(content)
@@ -326,12 +325,19 @@ def create_file_with_bytes(path: Path, content: bytes) -> Path:
 
 def assert_folder_match(match: FolderMatch, expected_count: int, expected_reason: MatchReason):
     """
-    Assert properties of a FolderMatch.
-
-    Args:
-        match: FolderMatch to validate.
-        expected_count: Expected number of folders in the match.
-        expected_reason: Expected MatchReason.
+    Validate that a FolderMatch meets expected count, reason, and basic integrity.
+    
+    Parameters:
+        match (FolderMatch): The FolderMatch object to validate.
+        expected_count (int): Expected number of folders in the match.
+        expected_reason (MatchReason): Expected match reason value.
+    
+    Raises:
+        AssertionError: If any of the following fail:
+            - number of folders does not equal expected_count
+            - match.match_reason does not equal expected_reason
+            - match.confidence is not greater than 0
+            - match.base_name is falsy
     """
     assert len(match.folders) == expected_count
     assert match.match_reason == expected_reason
@@ -341,13 +347,13 @@ def assert_folder_match(match: FolderMatch, expected_count: int, expected_reason
 
 def count_files_recursive(path: Path) -> int:
     """
-    Count all files in a directory recursively.
-
-    Args:
-        path: Directory path to count files in.
-
+    Count files under the given directory recursively, ignoring any directories named ".merged".
+    
+    Parameters:
+        path (Path): Root directory to search.
+    
     Returns:
-        Total file count.
+        int: Total number of files found beneath `path`, excluding files inside ".merged" directories.
     """
     count = 0
     for root, dirs, files in os.walk(path):
@@ -359,13 +365,13 @@ def count_files_recursive(path: Path) -> int:
 
 def get_all_files(path: Path) -> List[Path]:
     """
-    Get all file paths in a directory recursively.
-
-    Args:
-        path: Directory path to search.
-
+    Return all file paths under the given directory recursively, excluding any files inside directories named ".merged".
+    
+    Parameters:
+        path (Path): Root directory to search.
+    
     Returns:
-        List of file paths.
+        List[Path]: All file paths found beneath `path`, not including files in ".merged" directories.
     """
     files = []
     for root, dirs, filenames in os.walk(path):

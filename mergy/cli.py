@@ -47,7 +47,12 @@ console = Console()
 
 
 def version_callback(value: bool) -> None:
-    """Display version information and exit."""
+    """
+    Print the program version and exit if the version option was requested.
+    
+    Parameters:
+        value (bool): Whether the version option was requested; when True this prints the version and exits.
+    """
     if value:
         console.print(f"Computer Data Organization Tool v{__version__}")
         raise typer.Exit()
@@ -55,13 +60,15 @@ def version_callback(value: bool) -> None:
 
 def validate_base_path(base_path: Path) -> None:
     """
-    Validate that the provided base path exists and is accessible.
-
-    Args:
-        base_path: Path to validate.
-
+    Validate that base_path exists, is a directory, and is readable.
+    
+    If any check fails, prints an error to the console and exits the program with status code 1.
+    
+    Parameters:
+        base_path (Path): Path to validate.
+    
     Raises:
-        typer.Exit: If validation fails with descriptive error message.
+        typer.Exit: Exits with status code 1 when validation fails.
     """
     # Check if path exists
     if not base_path.exists():
@@ -87,16 +94,16 @@ def validate_base_path(base_path: Path) -> None:
 
 def validate_confidence(value: float) -> float:
     """
-    Validate confidence threshold is within valid range.
-
-    Args:
-        value: Confidence value to validate.
-
+    Validate that a confidence percentage is within the inclusive range 0 to 100.
+    
+    Parameters:
+        value (float): Confidence percentage to validate (expected 0–100).
+    
     Returns:
-        Validated confidence value.
-
+        float: The validated confidence value.
+    
     Raises:
-        typer.BadParameter: If value is out of range.
+        typer.BadParameter: If `value` is less than 0 or greater than 100.
     """
     if not 0.0 <= value <= 100.0:
         raise typer.BadParameter("Confidence must be between 0 and 100")
@@ -114,7 +121,12 @@ def main(
         help="Show version and exit.",
     ),
 ) -> None:
-    """Computer Data Organization Tool - Find and merge duplicate computer folders."""
+    """
+    CLI entry callback that processes global options for the mergy application.
+    
+    Parameters:
+        version (Optional[bool]): Typer-managed flag for the `--version`/`-v` option; when set, the configured callback prints the program version and exits.
+    """
     pass
 
 
@@ -255,14 +267,22 @@ def merge(
     ),
 ) -> None:
     """
-    Interactive merge workflow for matching folders.
-
-    Runs the complete 5-phase merge workflow:
-    1. Scan: Find matching folder groups
-    2. Selection: Interactively select folders to merge
-    3. Analysis: Preview merge operations
-    4. Execution: Perform merge (or simulate in dry-run mode)
-    5. Summary: Display results and statistics
+    Perform an interactive merge workflow for duplicate folders under the given base directory.
+    
+    Runs a five-phase workflow: scan for matching folder groups, interactively select folders to merge,
+    analyze and preview proposed operations, execute the merge (or simulate when dry-run is enabled),
+    and present a summary of results and statistics. May modify files unless `dry_run` is True.
+    
+    Parameters:
+        base_path (Path): Base directory containing folders to merge.
+        min_confidence (float): Minimum confidence threshold (0-100) required for matches to be considered.
+        dry_run (bool): If True, simulate the merge without modifying any files.
+        log_file (Optional[Path]): Path to write an operation log; failure to create the log causes the command to exit.
+        verbose (bool): Enable verbose output from the workflow.
+    
+    Notes:
+        The command exits with code 130 if interrupted by the user and with code 1 on permission, validation,
+        or I/O errors (including disk-full conditions).
     """
     # Validate base path
     validate_base_path(base_path)

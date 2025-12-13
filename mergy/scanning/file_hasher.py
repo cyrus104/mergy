@@ -33,13 +33,13 @@ class FileHasher:
 
     def get_hash(self, file_path: Path) -> str:
         """
-        Return cached hash or calculate new one.
-
-        Args:
-            file_path: Path to the file to hash.
-
+        Return the SHA256 hex digest for a file, using an in-memory cache to avoid recomputing hashes.
+        
+        Parameters:
+            file_path (Path): Path to the file to hash.
+        
         Returns:
-            Full 64-character SHA256 hex digest, or empty string on error.
+            str: 64-character SHA256 hexadecimal digest for the file, or an empty string if the file cannot be read.
         """
         # Resolve to absolute path for consistent caching
         resolved_path = file_path.resolve()
@@ -65,13 +65,10 @@ class FileHasher:
 
     def _calculate_hash(self, file_path: Path) -> str:
         """
-        Calculate SHA256 hash for a file using chunked reading.
-
-        Args:
-            file_path: Path to the file to hash.
-
+        Compute the SHA256 hash of the file at the given path.
+        
         Returns:
-            Full 64-character SHA256 hex digest.
+            The full 64-character SHA256 hexadecimal digest of the file's contents.
         """
         sha256 = hashlib.sha256()
 
@@ -83,17 +80,16 @@ class FileHasher:
 
     def get_short_hash(self, file_path: Path) -> str:
         """
-        Return first 16 characters of hash for filename suffixes.
-
-        Args:
-            file_path: Path to the file to hash.
-
+        Get the first 16 hexadecimal characters of a file's SHA256 hex digest.
+        
         Returns:
-            First 16 characters of SHA256 hex digest, or empty string on error.
+            The first 16 characters of the file's SHA256 hex digest, or an empty string if the hash could not be obtained.
         """
         full_hash = self.get_hash(file_path)
         return full_hash[:16] if full_hash else ""
 
     def clear_cache(self) -> None:
-        """Clear the hash cache (useful for testing or memory management)."""
+        """
+        Clear the in-memory hash cache.
+        """
         self._cache.clear()

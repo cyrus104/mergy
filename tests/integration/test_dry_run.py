@@ -36,7 +36,20 @@ from conftest import create_computer_folder
 
 
 def get_directory_snapshot(path: Path) -> dict:
-    """Capture complete state of a directory for comparison."""
+    """
+    Build a snapshot of a directory's structure and file contents for later comparison.
+    
+    Parameters:
+        path (Path): Root directory to capture; relative paths in the snapshot are computed from this root.
+    
+    Returns:
+        dict: A snapshot with two keys:
+            - 'files': mapping from relative file path (str) to a dict with keys:
+                - 'content' (bytes): full file bytes
+                - 'size' (int): file size in bytes
+            - 'dirs': set of relative directory path strings
+        If the given path does not exist, returns the same structure with an empty 'files' mapping and empty 'dirs' set.
+    """
     snapshot = {
         'files': {},
         'dirs': set()
@@ -223,7 +236,11 @@ class TestDryRunAnalysis:
         assert operation.dry_run is True
 
     def test_dry_run_statistics_accurate(self, temp_base_dir: Path):
-        """Verify counters reflect what would happen."""
+        """
+        Ensure a dry-run merge reports the expected number of files that would be copied.
+        
+        Sets up a primary folder with one existing file and a source folder with five new files, runs the merge in dry-run mode, and asserts the reported files_copied equals 5.
+        """
         primary = temp_base_dir / "stats"
         primary.mkdir()
         (primary / "keep.txt").write_text("keep")

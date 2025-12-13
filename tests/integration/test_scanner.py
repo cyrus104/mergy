@@ -215,7 +215,11 @@ class TestScannerErrors:
     """Tests for error handling during scanning."""
 
     def test_scan_permission_errors(self, temp_base_dir: Path):
-        """Mock permission denied, verify error tracking."""
+        """
+        Simulates a PermissionError while scanning a specific directory and verifies the scanner records the error.
+        
+        The test creates a folder with a file, patches os.walk to raise PermissionError when walking that folder, runs FolderScanner.scan(), and asserts that scanner.errors contains at least one permission-related message (e.g., "Permission denied", "PermissionError", or "Access denied").
+        """
         test_folder = temp_base_dir / "test_folder"
         test_folder.mkdir()
         (test_folder / "file.txt").write_text("content")
@@ -228,6 +232,20 @@ class TestScannerErrors:
 
         def mock_walk(path, **kwargs):
             # Check exact path equality with the test_folder directory path
+            """
+            Raise PermissionError when the resolved path matches the test folder, otherwise delegate to the underlying directory walk.
+            
+            Checks whether the resolved form of `path` equals the configured test folder path; if so, raises PermissionError("Access denied"). For any other path, yields the same (dirpath, dirnames, filenames) tuples produced by the underlying walk implementation.
+            
+            Parameters:
+                path (str | os.PathLike): Path to walk.
+            
+            Returns:
+                iterator: An iterator yielding (dirpath, dirnames, filenames) tuples from the underlying walk implementation.
+            
+            Raises:
+                PermissionError: If the resolved `path` matches the test folder path.
+            """
             if str(Path(path).resolve()) == test_folder_resolved:
                 raise PermissionError("Access denied")
             return original_walk(path, **kwargs)

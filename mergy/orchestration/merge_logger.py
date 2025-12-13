@@ -29,11 +29,11 @@ class MergeLogger:
         mode: str = "LIVE MERGE"
     ) -> None:
         """
-        Initialize logger with file path and mode.
-
-        Args:
-            log_file_path: Path for log file. If None, generates default name.
-            mode: Operation mode - "LIVE MERGE" or "DRY RUN".
+        Create a MergeLogger by resolving the log file path, opening the file for writing, and writing the initial header.
+        
+        Parameters:
+            log_file_path (Optional[Path]): Path for the log file. If None, a timestamped filename "merge_log_YYYY-MM-DD_HH-MM-SS.log" is generated and used.
+            mode (str): Operation mode, typically "LIVE MERGE" or "DRY RUN".
         """
         if log_file_path is None:
             timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
@@ -62,19 +62,26 @@ class MergeLogger:
         self._write_line(self.SEPARATOR)
 
     def _write_line(self, text: str) -> None:
-        """Write a line to the log file."""
+        """
+        Write a single line to the logger's file, appending a newline.
+        
+        If the logger has no open file handle, this method does nothing.
+        
+        Parameters:
+            text (str): Line content to write (without a trailing newline).
+        """
         if self._file_handle:
             self._file_handle.write(text + "\n")
 
     def _format_duration(self, seconds: float) -> str:
         """
-        Format duration in seconds to human-readable string.
-
-        Args:
-            seconds: Duration in seconds.
-
+        Return a human-readable duration string representing the given number of seconds.
+        
+        Parameters:
+            seconds (float): Duration in seconds.
+        
         Returns:
-            Formatted string (e.g., "2m 30s", "45s", "1h 5m 20s").
+            str: Formatted duration like "1h 5m 20s", "2m 30s", "45s", or "<1s" for durations less than one second.
         """
         if seconds < 1:
             return "<1s"
@@ -98,13 +105,15 @@ class MergeLogger:
         matches: List[FolderMatch]
     ) -> None:
         """
-        Log scan phase results.
-
-        Args:
-            base_path: Base directory that was scanned.
-            min_confidence: Minimum confidence threshold used.
-            folders: List of folders scanned.
-            matches: List of match groups found.
+        Write a SCAN PHASE section to the log describing the scan parameters, totals, and each match group.
+        
+        Includes base path, minimum confidence threshold, totals for scanned folders and match groups, the count of match groups above the threshold, and per-group entries showing confidence, humanized reason, and the list of folder names in each group.
+        
+        Parameters:
+            base_path (Path): Root directory that was scanned.
+            min_confidence (float): Minimum confidence threshold used (expressed as a percentage, 0–100).
+            folders (List[ComputerFolder]): Folders that were scanned.
+            matches (List[FolderMatch]): Match groups found (each group is expected to include its confidence, a match reason, and the folders in the group).
         """
         self._write_separator()
         self._write_line("SCAN PHASE")
@@ -130,11 +139,9 @@ class MergeLogger:
 
     def log_merge_phase_header(self) -> None:
         """
-        Write MERGE PHASE section header.
-
-        This method writes the MERGE PHASE section using separator lines
-        and a heading, followed by a blank line. It is idempotent and will
-        only write the header once per log file.
+        Write the MERGE PHASE section header to the log file.
+        
+        Writes a separator line, the "MERGE PHASE" heading, another separator, and a blank line. This operation is idempotent: the header is written only once per logger instance.
         """
         if self._merge_phase_started:
             return
@@ -163,10 +170,10 @@ class MergeLogger:
 
     def log_merge_start(self, folder_name: str) -> None:
         """
-        Log merge operation start.
-
-        Args:
-            folder_name: Name of the primary folder being merged into.
+        Record the start of a merge into the specified primary folder with a timestamp.
+        
+        Parameters:
+            folder_name (str): Name of the primary folder being merged into.
         """
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         self._write_line(f"[{timestamp}] Starting merge into: {folder_name}")
@@ -177,11 +184,11 @@ class MergeLogger:
         operation: MergeOperation
     ) -> None:
         """
-        Log merge progress for a source folder.
-
-        Args:
-            source_folder_name: Name of the source folder being merged.
-            operation: MergeOperation with current statistics.
+        Log progress for a source folder's merge by writing its statistics and any errors to the log.
+        
+        Parameters:
+            source_folder_name (str): Name of the source folder being merged.
+            operation (MergeOperation): Object containing counters (`files_copied`, `files_skipped`, `conflicts_resolved`, `folders_removed`) and an iterable `errors` of error messages.
         """
         self._write_line(f"  Merging: {source_folder_name}")
         self._write_line(f"    Files copied: {operation.files_copied}")
@@ -195,10 +202,10 @@ class MergeLogger:
 
     def log_merge_complete(self, folder_name: str) -> None:
         """
-        Log merge operation completion.
-
-        Args:
-            folder_name: Name of the primary folder that was merged into.
+        Record completion of a merge into the given folder with a timestamp.
+        
+        Parameters:
+            folder_name (str): Name of the primary folder that was merged into.
         """
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         self._write_line(f"[{timestamp}] Completed merge into: {folder_name}")
@@ -251,10 +258,10 @@ class MergeLogger:
 
     def log_error(self, error_message: str) -> None:
         """
-        Log an error with timestamp.
-
-        Args:
-            error_message: Error message to log.
+        Write a timestamped ERROR entry to the log and flush the file.
+        
+        Parameters:
+            error_message (str): Message text to record.
         """
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         self._write_line(f"[{timestamp}] ERROR: {error_message}")
@@ -264,14 +271,23 @@ class MergeLogger:
             self._file_handle.flush()
 
     def close(self) -> None:
-        """Close the log file."""
+        """
+        Close and flush the internal log file handle and release the reference.
+        
+        If a file handle is present, flushes any buffered data, closes the file, and sets the internal handle to None; if no file is open, the call has no effect.
+        """
         if self._file_handle:
             self._file_handle.flush()
             self._file_handle.close()
             self._file_handle = None
 
     def __enter__(self) -> 'MergeLogger':
-        """Context manager entry."""
+        """
+        Enter the MergeLogger context manager.
+        
+        Returns:
+            MergeLogger: The logger instance (same object returned by the context manager).
+        """
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb) -> None:
