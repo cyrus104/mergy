@@ -1,0 +1,66 @@
+# Python bytecode and cache
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Distribution and packaging
+*.egg-info/
+.eggs/
+dist/
+build/
+*.egg
+wheels/
+*.whl
+.installed.cfg
+
+# Virtual environments
+venv/
+env/
+.venv/
+.env/
+ENV/
+env.bak/
+venv.bak/
+pyvenv.cfg
+
+# Testing and coverage
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+*.cover
+.hypothesis/
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*.swn
+*~
+.project
+.pydevproject
+.spyderproject
+.spyproject
+
+# Operating system files
+.DS_Store
+Thumbs.db
+Desktop.ini
+*.lnk
+
+# Application-specific files (Mergy)
+merge_log_*.log
+*.log
+.merged/
+
+# Temporary and backup files
+*.tmp
+*.temp
+*.bak
+*.backup
+*.orig
+
+# Documentation build artifacts
+docs/_build/
+site/

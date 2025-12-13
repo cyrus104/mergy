@@ -1,0 +1,40 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "mergy"
+version = "0.1.0"
+description = "Computer Data Organization Tool for intelligently merging folders"
+readme = "README.md"
+requires-python = ">=3.11"
+license = {text = "MIT"}
+authors = [
+    {name = "Mergy Contributors"}
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: End Users/Desktop",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Operating System :: OS Independent",
+]
+dependencies = [
+    "typer[all]>=0.9.0",
+    "rich>=13.0.0",
+    "rapidfuzz>=3.0.0",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=7.0.0", "pytest-cov>=4.0.0"]
+
+[project.scripts]
+mergy = "mergy:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+
+# Pytest configuration is defined in pytest.ini for tools that prefer that format
+# See pytest.ini for testpaths, addopts, markers, etc.

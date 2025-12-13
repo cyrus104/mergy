@@ -1,0 +1,14 @@
+# Mergy dependencies
+#
+# NOTE: pyproject.toml is the single source of truth for dependencies.
+# This file mirrors those dependencies for tools that require requirements.txt.
+# When updating dependencies, update pyproject.toml first, then sync here.
+
+# CLI framework with rich output support
+typer[all]>=0.9.0
+
+# Terminal UI components for rich text formatting
+rich>=13.0.0
+
+# Fuzzy string matching for folder name comparison
+rapidfuzz>=3.0.0
