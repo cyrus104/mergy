@@ -1,0 +1,5 @@
+2024-01-15 10:23:45 computer-01 systemd[1]: Started Session 1 of user root.
+2024-01-15 10:24:12 computer-01 kernel: [    0.000000] Linux version 5.15.0
+2024-01-15 10:25:33 computer-01 sshd[1234]: Accepted publickey for user from 192.168.1.100
+2024-01-15 11:30:00 computer-01 cron[5678]: (root) CMD (run-parts /etc/cron.hourly)
+2024-01-15 12:00:00 computer-01 systemd[1]: Started Daily apt download activities.

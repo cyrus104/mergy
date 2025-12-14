@@ -1,0 +1,5 @@
+2024-01-10 08:15:00 computer-01 systemd[1]: Starting backup service...
+2024-01-10 08:15:05 computer-01 backup[1111]: Backup started for /home/user
+2024-01-10 08:30:22 computer-01 backup[1111]: Backup completed successfully
+2024-01-10 09:00:00 computer-01 cron[2222]: (root) CMD (run-parts /etc/cron.hourly)
+2024-01-10 10:45:33 computer-01 sshd[3333]: Accepted password for admin from 192.168.1.5

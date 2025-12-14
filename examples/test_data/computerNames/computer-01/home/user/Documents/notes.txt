@@ -1,0 +1,12 @@
+Project notes for computer-01
+
+Created: 2024-01-15
+Author: User
+
+Tasks:
+- Review configuration files
+- Update system packages
+- Check backup status
+
+Notes:
+This is the primary workstation. All development work happens here.

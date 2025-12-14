@@ -1,0 +1,13 @@
+{
+  "app_name": "myapp",
+  "version": "2.0.5",
+  "database": {
+    "host": "192.168.1.50",
+    "port": 5432,
+    "name": "myapp_db"
+  },
+  "logging": {
+    "level": "debug",
+    "file": "/var/log/myapp/app.log"
+  }
+}

@@ -29,6 +29,36 @@ computerNames/
     └── other.txt             # Should not match any group
 ```
 
+## Expanded Structure (Realistic Linux Workstation)
+
+Each computer-01 variant now includes realistic Linux workstation files:
+
+- **home/user/**: User home directory with dotfiles (.bash_history, .bashrc, .profile)
+- **etc/**: System configuration files (hostname, network interfaces)
+- **var/log/**: System logs (syslog, auth.log)
+- **opt/**: Optional application data
+- **tmp/**: Temporary files
+
+### File Variety for Testing
+
+| File Path | computer-01 | computer-01-backup | computer-01.old | Purpose |
+|-----------|-------------|-------------------|-----------------|---------|
+| `data.txt` | Original | Different | Identical | Conflict + Duplicate |
+| `home/user/.bash_history` | Commands A | Commands B | Commands A | Conflict + Duplicate |
+| `home/user/.bashrc` | Config | Identical | Identical | Deduplication |
+| `home/user/Documents/notes.txt` | Notes v1 | Notes v2 | Notes v1 | Conflict + Duplicate |
+| `home/user/Documents/report.pdf` | - | Unique | - | New file copy |
+| `etc/hostname` | computer-01 | Identical | Identical | Deduplication |
+| `var/log/syslog` | Logs A | Logs B | Logs C | Multiple conflicts |
+| `opt/myapp/config.json` | Config A | Config B | Config A | Conflict + Duplicate |
+| `opt/legacy/old_app.bin` | - | - | Unique | New file from old |
+| `tmp/session.tmp` | - | Unique | - | New file copy |
+
+This variety ensures comprehensive testing of:
+- **Deduplication**: Identical files skipped (no copy needed)
+- **Conflict Resolution**: Different files at same path (newer kept, older to .merged/)
+- **New File Copying**: Unique files copied to primary folder
+
 ## Expected Matches
 
 When running `mergy scan examples/test_data/computerNames`:
@@ -72,6 +102,30 @@ For Group 1 (computer-01 variants):
 For Group 2 (192.168.1.5 variants):
 - `system.log` files have different content
 - Conflict resolved: newer file kept, older moved to `.merged/` with hash suffix
+
+### After Merge (Expanded Structure)
+
+For Group 1 (computer-01 variants) with expanded structure:
+
+**Deduplication (files skipped):**
+- `.bashrc`, `.profile` - identical across all three
+- `etc/hostname` - identical across all three
+- `var/log/auth.log` - identical in computer-01 and computer-01-backup
+- Multiple other identical files
+
+**Conflicts Resolved:**
+- `.bash_history` - different commands between computer-01 and computer-01-backup
+- `Documents/notes.txt` - different content versions
+- `var/log/syslog` - different log entries (timestamp-based resolution)
+- `opt/myapp/config.json` - different configuration values
+- Older versions moved to `.merged/` with hash suffix
+
+**New Files Copied:**
+- `Documents/report.pdf` from computer-01-backup
+- `tmp/session.tmp` from computer-01-backup
+- `opt/legacy/old_app.bin` from computer-01.old
+
+**Result:** Primary folder contains all unique files, newest versions of conflicts, and no duplicates.
 
 ## Cleanup
 

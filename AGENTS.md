@@ -7,7 +7,7 @@ Mergy is a Python-based CLI application designed to intelligently identify, anal
 **Key Features:**
 - Multi-tier folder matching (exact prefix, normalized, token-based, fuzzy)
 - Interactive terminal UI for merge selection
-- Safe merging with no data loss (conflicts moved to `.merged` folders)
+- Safe merging with no data loss (conflicts moved to permanent `.merged/` archives, never auto-deleted)
 - SHA256-based file comparison and deduplication
 - Dry-run mode for testing
 - Comprehensive logging of all operations
@@ -387,13 +387,19 @@ Log file: /current/dir/merge_log_2024-01-15_14-30-00.log
 
 **No Deletions:**
 - Original files are never deleted during merge
-- Older files are moved to `.merged/` with sha256 hash suffix
-- Empty directories removed only after successful merge
+- Older files are moved to **permanent** `.merged/` archives with SHA256 hash suffix
+- `.merged/` directories are **never automatically deleted** by Mergy—they are preserved indefinitely as safety archives
+- Empty directories removed only after successful merge (but `.merged/` directories are always preserved)
 
 **No Overwrites:**
 - Newer files always take precedence
-- Older files preserved in `.merged/` directory
+- Older files preserved in `.merged/` directory indefinitely
 - Identical files (by hash) are safely skipped
+
+**User-Controlled Cleanup:**
+- Manual cleanup of `.merged/` directories is **optional** and should only be done after thorough verification
+- Minimum recommended retention: 30-90 days (longer for critical data)
+- See README.md "Advanced: .merged Directory Cleanup" for safe cleanup procedures
 
 **Dry Run Mode:**
 - Full simulation of merge process
@@ -613,13 +619,19 @@ pyinstaller mergy.spec
 
 **Regular:**
 - Review log files for errors
-- Monitor disk space for `.merged` directories
+- Monitor disk space for `.merged/` directories (expected to grow over time)
 - Archive old log files
 
 **Periodic:**
 - Update dependencies (pip install --upgrade)
 - Review and adjust confidence thresholds
-- Clean up `.merged` directories if no longer needed
+
+**Optional (User-Controlled):**
+- `.merged/` directory cleanup is **optional** and requires manual execution
+- Mergy **never automatically deletes** `.merged/` directories
+- Minimum retention: 30-90 days (longer for critical/irreplaceable data)
+- Before cleanup: verify data, create external archives, document deletion
+- See README.md "Advanced: .merged Directory Cleanup" section for safe procedures
 
 ---
 
@@ -667,7 +679,7 @@ pyinstaller mergy.spec
 | **Match Group** | Collection of 2+ folders identified as potential duplicates |
 | **Conflict** | Two files at the same path with different content (different hashes) |
 | **Duplicate** | Two files at the same path with identical content (same hash) |
-| **.merged Directory** | Subfolder created at each level to store older versions of conflicting files |
+| **.merged Directory** | Permanent safety archive created at each level to store older versions of conflicting files (never auto-deleted by Mergy) |
 | **Dry Run** | Simulation mode that performs all analysis without modifying files |
 | **Hash Suffix** | First 16 characters of SHA256 hash appended to filename |
 | **Creation Time** | File's st_ctime value used for determining which file is newer |

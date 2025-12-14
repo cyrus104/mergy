@@ -12,7 +12,7 @@ Intelligent folder merging CLI for duplicate computer backups.
 
 - **Multi-tier folder matching** - Exact prefix, normalized, token-based, and fuzzy matching with confidence scoring
 - **Interactive Rich-based TUI** - Terminal user interface for merge selection and progress tracking
-- **Safe merging with no data loss** - Conflicts moved to `.merged/` with hash suffixes
+- **Safe merging with no data loss** - Conflicts moved to permanent `.merged/` archives with hash suffixes (never automatically deleted)
 - **SHA256-based file comparison** - Accurate deduplication through content hashing
 - **Dry-run mode** - Test operations without file system changes
 - **Comprehensive structured logging** - Timestamped logs for audit trails
@@ -119,9 +119,31 @@ mergy --version
   - Lower (50-60) for more matches
   - Higher (80-90) for precision
 - **Review log files** after operations for detailed audit trail
-- **Keep `.merged/` directories** until confident older versions aren't needed
 - **Test on small subset** before processing large folder collections
 - **Ensure sufficient disk space** (merging doesn't delete originals immediately)
+
+### Managing .merged/ Directories
+
+Treat `.merged/` directories as **permanent safety archives**, not temporary files to clean up:
+
+- **Mergy never automatically deletes** `.merged/` directories—they are preserved indefinitely
+- `.merged/` directories are **skipped during subsequent scans** to prevent re-processing
+- **Minimum retention**: 30-90 days after merge completion
+- **Recommended retention for critical data**: 6-12 months or longer
+- **Never delete** `.merged/` directories without first creating external backups
+
+**Before considering deletion:**
+```bash
+# Review what's in .merged/ directories
+ls -lR /path/to/computerNames/*/.merged/
+
+# Check total disk space used
+du -sh /path/to/computerNames/*/.merged 2>/dev/null
+
+# Document what you're deleting and when (maintain a deletion log)
+```
+
+Consider disk space vs. data safety trade-offs carefully. When in doubt, keep the `.merged/` directories—storage is cheaper than lost data.
 
 ## Troubleshooting
 
@@ -134,6 +156,8 @@ mergy --version
 | Memory issues | Process folders in smaller batches, close other applications |
 | Long folder names display issues | Terminal width <80 columns may truncate; resize or use `--verbose` for full paths |
 | Hash calculation errors | Check file permissions and disk health; corrupted files are skipped and logged |
+| `.merged/` directories consuming disk space | This is expected—`.merged/` directories preserve all older file versions for safety. Review contents with `du -sh /path/*/.merged/`, verify data, then optionally archive and delete after 30-90+ days. Never delete without external backups. |
+| Can I delete `.merged/` directories? | Only after: (1) thorough verification of merged data, (2) external backups created and verified, (3) minimum 30-90 day retention period, (4) absolute certainty older versions are not needed. Deletion is **permanent and irreversible**. See [Advanced: .merged Directory Cleanup](#advanced-merged-directory-cleanup-optional). |
 
 ## How It Works
 
@@ -147,8 +171,57 @@ mergy --version
 ### Conflict Resolution
 
 - **Keep newer file** based on modification time
-- **Move older file** to `.merged/` subdirectory with 16-character hash suffix
+- **Move older file** to permanent `.merged/` archive subdirectory with 16-character hash suffix (preserved indefinitely, never auto-deleted)
 - **Skip duplicates** when SHA256 hashes match (identical content)
+
+### Understanding .merged Directories
+
+`.merged/` directories are **permanent safety archives** created automatically during conflict resolution. Mergy **never automatically deletes** these directories—they preserve all older file versions for data recovery.
+
+**Key behaviors:**
+- Created at the **same level as conflicting files** (not at root)
+- Naming convention: `filename_hash16chars.ext` where hash is first 16 characters of SHA256
+- **Intentionally skipped** during all subsequent scans and merge operations
+- Remain until **you manually delete them** after thorough verification
+
+**Example structure after conflict resolution:**
+```
+primary-folder/
+├── logs/
+│   ├── system.log          # Newer version (kept in place)
+│   └── .merged/
+│       └── system.log_abc123def4567890  # Older version (archived)
+├── config/
+│   ├── settings.json       # Newer version (kept in place)
+│   └── .merged/
+│       └── settings.json_fedcba9876543210  # Older version (archived)
+```
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant Mergy
+    participant Primary as Primary Folder
+    participant Merged as .merged/ Archive
+
+    User->>Mergy: Execute merge operation
+    Mergy->>Primary: Check file exists
+    Primary-->>Mergy: File found
+    Mergy->>Mergy: Compare SHA256 hashes
+    alt Hashes match (duplicate)
+        Mergy->>Mergy: Skip file (no action)
+    else Hashes differ (conflict)
+        Mergy->>Mergy: Compare timestamps
+        alt Primary is newer
+            Mergy->>Merged: Move older source file
+            Note over Merged: filename_hash16.ext
+        else Source is newer
+            Mergy->>Merged: Move older primary file
+            Mergy->>Primary: Copy newer source file
+        end
+    end
+    Note over Merged: .merged/ preserved indefinitely<br/>Never auto-deleted by Mergy
+```
 
 ### Interactive Workflow
 
@@ -184,10 +257,49 @@ du -sh /path/to/computerNames/*/.merged
 # Archive old log files
 gzip merge_log_*.log
 mv *.gz logs/archive/
+```
 
-# Clean up .merged directories after verification (CAUTION: irreversible)
+### Advanced: .merged Directory Cleanup (Optional)
+
+> **CRITICAL WARNING**: Deleting `.merged/` directories is **permanent and irreversible**. These directories contain the only copies of older file versions. Once deleted, this data **cannot be recovered**.
+
+`.merged/` directories are **permanent safety archives**—Mergy never automatically deletes them. Manual cleanup is **optional** and should only be performed after:
+
+1. **Thorough verification** of all merged data (confirm newer versions are correct)
+2. **External backups created** and verified (see backup commands below)
+3. **Minimum 30-90 day retention** (longer for critical/irreplaceable data)
+4. **Absolute certainty** that older versions are truly not needed
+
+**Safe cleanup procedure:**
+
+```bash
+# Step 1: Review .merged/ contents first
+find /path/to/computerNames -type d -name ".merged" -exec ls -lh {} \;
+
+# Step 2: Check total disk space used
+du -sh /path/to/computerNames/*/.merged 2>/dev/null | sort -h
+
+# Step 3: Create archive backup BEFORE deletion
+tar -czvf merged-backup-$(date +%Y%m%d).tar.gz $(find /path/to/computerNames -type d -name ".merged")
+
+# Step 4: Verify archive integrity
+tar -tzf merged-backup-$(date +%Y%m%d).tar.gz | head -20
+
+# Step 5: Store archive in separate location (external drive, cloud, etc.)
+# Only after steps 1-4 are complete:
+
+# Step 6: Delete .merged directories (PERMANENT - NO UNDO)
 find /path/to/computerNames -type d -name ".merged" -exec rm -rf {} +
 ```
+
+**Retention Guidelines:**
+
+| Data Type | Minimum Retention | Recommended Retention | Notes |
+|-----------|-------------------|----------------------|-------|
+| Test/Development data | 30 days | 60 days | Lower risk, faster cleanup |
+| Production data | 90 days | 6-12 months | Critical data, extended retention |
+| Compliance/Audit data | 12 months | 3-7 years | Legal requirements may apply |
+| Irreplaceable data | Indefinite | Indefinite | Never delete without external archives |
 
 ### Periodic Tasks
 
@@ -200,8 +312,28 @@ find /path/to/computerNames -type d -name ".merged" -exec rm -rf {} +
 
 - Always maintain backups before merging large datasets
 - Test merge operations on copies first
-- Keep `.merged/` directories until confident older versions aren't needed (typically 30-90 days)
 - Archive log files for audit trail (recommend 1 year retention)
+
+**Treating .merged/ as part of your backup strategy:**
+
+`.merged/` directories contain all older file versions and serve as your **version history**—valuable for data recovery:
+
+- Keep `.merged/` directories for **minimum 30-90 days** after merge (longer for critical data)
+- Consider `.merged/` directories as a first line of defense for recovering previous file versions
+- Before deleting `.merged/` directories, create an external archive:
+
+```bash
+# Create compressed archive of all .merged/ directories
+tar -czvf merged-archive-$(date +%Y%m%d).tar.gz /path/to/computerNames/*/.merged/
+
+# Verify archive integrity
+tar -tzf merged-archive-*.tar.gz | head
+
+# Store archive in separate location (external drive, cloud storage)
+# Document what was archived and the deletion date
+```
+
+- Only delete `.merged/` directories after archive is verified and stored separately
 
 ## Development
 
